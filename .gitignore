@@ -1,0 +1,55 @@
+# --- Python virtual environments ---
+venv/
+.env/
+.venv/
+ENV/
+
+# --- Python cache/bytecode ---
+__pycache__/
+*.py[cod]
+*$py.class
+
+# --- Build & packaging ---
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# --- Flask specifics ---
+instance/
+*.sqlite3
+*.db
+*.sqlite
+*.pid
+
+# --- Env/config files (keep secrets out of git) ---
+.env.local
+.flaskenv
+*.env
+
+# --- Test/coverage ---
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+
+# --- Type checking / linters / tooling ---
+.mypy_cache/
+.pyre/
+.pytype/
+.ruff_cache/
+.dmypy.json
+
+# --- IDE / editor junk ---
+.vscode/
+.idea/
+*.code-workspace
+
+# --- OS files ---
+.DS_Store
+Thumbs.db
+
+# --- Logs ---
+*.log
+logs/
