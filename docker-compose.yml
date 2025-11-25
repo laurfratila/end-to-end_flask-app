@@ -1,0 +1,86 @@
+services:
+  web:
+    build: .
+    container_name: microblog
+    ports:
+      - "8000:8000"
+    environment:
+      # Flask runtime
+      FLASK_APP: microblog.py
+      FLASK_ENV: production
+      PORT: "8000"
+      SECRET_KEY: ${SECRET_KEY:-change-me}
+
+      # SQLite persistence
+      DATABASE_URL: sqlite:////app/instance/app.db
+
+      # Azure Translator
+      MS_TRANSLATOR_KEY: ${MS_TRANSLATOR_KEY}
+      MS_TRANSLATOR_REGION: ${MS_TRANSLATOR_REGION:-westeurope}
+      MS_TRANSLATOR_ENDPOINT: ${MS_TRANSLATOR_ENDPOINT:-https://api.cognitive.microsofttranslator.com}
+
+      # Search and background tasks
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      REDIS_URL: redis://redis:6379/0
+
+      # Mail for notifications
+      MAIL_SERVER: mailhog
+      MAIL_PORT: "1025"
+      ADMIN_EMAIL: admin@example.com
+
+    volumes:
+      - microblog_instance:/app/instance
+
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      mailhog:
+        condition: service_started
+
+  worker:
+    build: .
+    container_name: microblog_worker
+    command: sh -c "rq worker -u ${REDIS_URL:-redis://redis:6379/0} microblog-tasks"
+    environment:
+      FLASK_APP: microblog.py
+      FLASK_ENV: production
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: sqlite:////app/instance/app.db
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      SECRET_KEY: ${SECRET_KEY:-change-me}
+    volumes:
+      - microblog_instance:/app/instance
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.14.3
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:9200 >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: mailhog
+    ports:
+      - "8025:8025"   # open http://localhost:8025 for email UI
+
+volumes:
+  microblog_instance:
