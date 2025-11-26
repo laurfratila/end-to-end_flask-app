@@ -1,4 +1,4 @@
-#  docs/01_hello_world.md
+#  01_hello_world.md
 
 ## **Chapter 1 — Project Introduction & “Hello, World!”**
 
@@ -245,14 +245,3 @@ If you understand Chapter 1, you understand the core mechanics powering the enti
 
 ---
 
-###  Next Step
-
-When you're ready, simply say:
-
-> **Generate chapter 2**
-
-and I’ll prepare:
-
- `docs/02_templates.md`
-
-formatted in the same clean developer-focused Markdown style.
