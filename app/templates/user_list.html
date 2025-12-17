@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h1>{{ title }}</h1>
+
+    <p>
+        <a href="{{ url_for('main.user', username=user.username) }}">
+            &larr; {{ _('Back to profile') }}
+        </a>
+    </p>
+
+    {% if users %}
+        <ul class="list-unstyled">
+            {% for u in users %}
+                <li class="media my-3">
+                    <img src="{{ u.avatar(64) }}"
+                         class="mr-3 rounded-circle"
+                         alt="{{ u.username }}">
+
+                    <div class="media-body">
+                        <h5 class="mt-0 mb-1">
+                            <a href="{{ url_for('main.user', username=u.username) }}">
+                                {{ u.username }}
+                            </a>
+                        </h5>
+
+                        {% if u.about_me %}
+                            <p>{{ u.about_me }}</p>
+                        {% endif %}
+                    </div>
+                </li>
+            {% endfor %}
+        </ul>
+
+        <nav aria-label="Page navigation">
+            <ul class="pager">
+                {% if prev_url %}
+                    <li class="previous">
+                        <a href="{{ prev_url }}">&larr; {{ _('Previous') }}</a>
+                    </li>
+                {% endif %}
+                {% if next_url %}
+                    <li class="next">
+                        <a href="{{ next_url }}">{{ _('Next') }} &rarr;</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+    {% else %}
+        {% if list_type == 'followers' %}
+            <p>{{ _('%(username)s has no followers yet.', username=user.username) }}</p>
+        {% else %}
+            <p>{{ _('%(username)s is not following anyone yet.', username=user.username) }}</p>
+        {% endif %}
+    {% endif %}
+{% endblock %}
