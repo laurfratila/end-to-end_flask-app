@@ -2,6 +2,137 @@
 {% import "bootstrap_wtf.html" as wtf %}
 
 {% block content %}
-    <h1>{{ _('Register') }}</h1>
-    {{ wtf.quick_form(form) }}
+  <h1>{{ _('Register') }}</h1>
+
+  <form method="post" novalidate>
+    {{ form.hidden_tag() }}
+
+    {# Username #}
+    <div class="mb-3">
+      {{ form.username.label(class="form-label") }}
+      {{ form.username(class="form-control", placeholder=_('Enter username')) }}
+      {% for error in form.username.errors %}
+        <div class="invalid-feedback d-block">{{ error }}</div>
+      {% endfor %}
+    </div>
+
+    {# Email #}
+    <div class="mb-3">
+      {{ form.email.label(class="form-label") }}
+      {{ form.email(class="form-control", placeholder=_('Enter email')) }}
+      {% for error in form.email.errors %}
+        <div class="invalid-feedback d-block">{{ error }}</div>
+      {% endfor %}
+    </div>
+
+    {# Password with custom visibility toggle #}
+    <div class="mb-3">
+      {{ form.password.label(class="form-label") }}
+      <div class="input-group">
+        {{ form.password(
+          class="form-control",
+          id="password",
+          autocomplete="new-password"
+        ) }}
+        <button type="button"
+                class="btn btn-outline-secondary password-toggle d-none"
+                id="passwordToggle"
+                data-visible="false"
+                aria-label="{{ _('Show password') }}">
+          {{ _('Show') }}
+        </button>
+      </div>
+      {% for error in form.password.errors %}
+        <div class="invalid-feedback d-block">{{ error }}</div>
+      {% endfor %}
+    </div>
+
+    {# Repeat password with custom visibility toggle #}
+    <div class="mb-3">
+      {{ form.password2.label(class="form-label") }}
+      <div class="input-group">
+        {{ form.password2(
+          class="form-control",
+          id="password2",
+          autocomplete="new-password"
+        ) }}
+        <button type="button"
+                class="btn btn-outline-secondary password-toggle d-none"
+                id="password2Toggle"
+                data-visible="false"
+                aria-label="{{ _('Show password') }}">
+          {{ _('Show') }}
+        </button>
+      </div>
+      {% for error in form.password2.errors %}
+        <div class="invalid-feedback d-block">{{ error }}</div>
+      {% endfor %}
+    </div>
+
+    <button type="submit" class="btn btn-primary">
+      {{ _('Register') }}
+    </button>
+  </form>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      function setupPasswordToggle(inputId, toggleId) {
+        const input  = document.getElementById(inputId);
+        const toggle = document.getElementById(toggleId);
+        if (!input || !toggle) return;
+
+        const showLabel = "{{ _('Show') }}";
+        const hideLabel = "{{ _('Hide') }}";
+
+        function updateVisibility() {
+          // Only show the button if there is content in the field
+          if (input.value.length > 0) {
+            toggle.classList.remove('d-none');
+          } else {
+            toggle.classList.add('d-none');
+            // Reset to password type if the user cleared the field
+            if (input.type === 'text') {
+              input.type = 'password';
+              toggle.dataset.visible = 'false';
+              toggle.textContent = showLabel;
+              toggle.setAttribute('aria-label', "{{ _('Show password') }}");
+            }
+          }
+        }
+
+        toggle.addEventListener('click', function () {
+          const isVisible = toggle.dataset.visible === 'true';
+
+          if (isVisible) {
+            // Turn visibility off
+            input.type = 'password';
+            toggle.dataset.visible = 'false';
+            toggle.textContent = showLabel;
+            toggle.setAttribute('aria-label', "{{ _('Show password') }}");
+          } else {
+            // Turn visibility on
+            input.type = 'text';
+            toggle.dataset.visible = 'true';
+            toggle.textContent = hideLabel;
+            toggle.setAttribute('aria-label', "{{ _('Hide password') }}");
+          }
+
+          // Keep UX consistent: refocus the field
+          input.focus();
+        });
+
+        // Keep the button visibility in sync with content
+        input.addEventListener('input', updateVisibility);
+
+        // Initial state on page load / back navigation
+        updateVisibility();
+      }
+
+      setupPasswordToggle('password', 'passwordToggle');
+      setupPasswordToggle('password2', 'password2Toggle');
+    });
+  </script>
 {% endblock %}
