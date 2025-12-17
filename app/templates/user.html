@@ -10,7 +10,17 @@
                 {% if user.last_seen %}
                 <p>{{ _('Last seen on') }}: {{ moment(user.last_seen).format('LLL') }}</p>
                 {% endif %}
-                <p>{{ _('%(count)d followers', count=user.followers_count()) }}, {{ _('%(count)d following', count=user.following_count()) }}</p>
+
+                {# FOLLOWERS / FOLLOWING COUNTS + LINKS #}
+                <p>
+                    <a href="{{ url_for('main.followers', username=user.username) }}">
+                        {{ _('%(count)d followers', count=user.followers_count()) }}
+                    </a>,
+                    <a href="{{ url_for('main.following', username=user.username) }}">
+                        {{ _('%(count)d following', count=user.following_count()) }}
+                    </a>
+                </p>
+
                 {% if user == current_user %}
                 <p><a href="{{ url_for('main.edit_profile') }}">{{ _('Edit your profile') }}</a></p>
                 {% if not current_user.get_task_in_progress('export_posts') %}
@@ -31,12 +41,14 @@
                     </form>
                 </p>
                 {% endif %}
+
                 {% if user != current_user %}
                 <p><a href="{{ url_for('main.send_message', recipient=user.username) }}">{{ _('Send private message') }}</a></p>
                 {% endif %}
             </td>
         </tr>
     </table>
+
     {% for post in posts %}
         {% include '_post.html' %}
     {% endfor %}

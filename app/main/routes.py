@@ -239,3 +239,74 @@ def notifications():
         'data': n.get_data(),
         'timestamp': n.timestamp
     } for n in notifications]
+
+
+
+
+@bp.route('/user/<username>/followers')
+@login_required
+def followers(username):
+    user = db.session.scalar(sa.select(User).where(User.username == username))
+    if user is None:
+        flash(_('User %(username)s not found.', username=username))
+        return redirect(url_for('main.index'))
+
+    page = request.args.get('page', 1, type=int)
+
+    # NOTE: followers is WriteOnlyCollection → use .select() + db.paginate
+    pagination = db.paginate(
+        user.followers.select().order_by(User.username),
+        page=page,
+        per_page=current_app.config['POSTS_PER_PAGE'],
+        error_out=False,
+    )
+    users = pagination.items
+
+    next_url = url_for('main.followers', username=user.username, page=pagination.next_num) \
+        if pagination.has_next else None
+    prev_url = url_for('main.followers', username=user.username, page=pagination.prev_num) \
+        if pagination.has_prev else None
+
+    return render_template(
+        'user_list.html',
+        title=_('Followers of %(username)s', username=user.username),
+        user=user,
+        users=users,
+        next_url=next_url,
+        prev_url=prev_url,
+        list_type='followers',
+    )
+
+
+@bp.route('/user/<username>/following')
+@login_required
+def following(username):
+    user = db.session.scalar(sa.select(User).where(User.username == username))
+    if user is None:
+        flash(_('User %(username)s not found.', username=username))
+        return redirect(url_for('main.index'))
+
+    page = request.args.get('page', 1, type=int)
+
+    pagination = db.paginate(
+        user.following.select().order_by(User.username),
+        page=page,
+        per_page=current_app.config['POSTS_PER_PAGE'],
+        error_out=False,
+    )
+    users = pagination.items
+
+    next_url = url_for('main.following', username=user.username, page=pagination.next_num) \
+        if pagination.has_next else None
+    prev_url = url_for('main.following', username=user.username, page=pagination.prev_num) \
+        if pagination.has_prev else None
+
+    return render_template(
+        'user_list.html',
+        title=_('Accounts followed by %(username)s', username=user.username),
+        user=user,
+        users=users,
+        next_url=next_url,
+        prev_url=prev_url,
+        list_type='following',
+    )
