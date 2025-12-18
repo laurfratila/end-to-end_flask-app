@@ -23,10 +23,16 @@ services:
       ELASTICSEARCH_URL: http://elasticsearch:9200
       REDIS_URL: redis://redis:6379/0
 
-      # Mail for notifications
-      MAIL_SERVER: mailhog
-      MAIL_PORT: "1025"
-      ADMIN_EMAIL: admin@example.com
+      
+            # Mail for notifications (Gmail SMTP)
+      MAIL_SERVER: smtp.gmail.com
+      MAIL_PORT: "587"
+      MAIL_USERNAME: tests.laur@gmail.com
+      MAIL_PASSWORD: gbuvgzjdczqgljvv
+      MAIL_USE_TLS: "1"
+      MAIL_USE_SSL: "0"
+      ADMIN_EMAIL: tests.laur@gmail.com
+      MAIL_DEFAULT_SENDER: tests.laur@gmail.com
 
     volumes:
       - microblog_instance:/app/instance
@@ -35,8 +41,6 @@ services:
       elasticsearch:
         condition: service_healthy
       redis:
-        condition: service_started
-      mailhog:
         condition: service_started
 
   worker:
