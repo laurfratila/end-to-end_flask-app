@@ -4,12 +4,20 @@ import unittest
 from app import create_app, db
 from app.models import User, Post
 from config import Config
+from app.translate import translate
+from app import mail
+from app.email import send_email
+
 
 
 class TestConfig(Config):
     TESTING = True
     SQLALCHEMY_DATABASE_URI = 'sqlite://'
     ELASTICSEARCH_URL = None
+    MAIL_SUPPRESS_SEND = True
+    WTF_CSRF_ENABLED = False
+    MS_TRANSLATOR_KEY = None
+    MS_TRANSLATOR_REGION = None
 
 
 class UserModelCase(unittest.TestCase):
@@ -18,6 +26,7 @@ class UserModelCase(unittest.TestCase):
         self.app_context = self.app.app_context()
         self.app_context.push()
         db.create_all()
+
 
     def tearDown(self):
         db.session.remove()
@@ -100,6 +109,158 @@ class UserModelCase(unittest.TestCase):
         self.assertEqual(f2, [p2, p3])
         self.assertEqual(f3, [p3, p4])
         self.assertEqual(f4, [p4])
+
+
+
+    def test_reset_password_token(self):
+        u = User(username='john', email='john@example.com')
+        db.session.add(u)
+        db.session.commit()
+
+        token = u.get_reset_password_token()
+        self.assertIsNotNone(token)
+
+        # Valid token loads same user
+        u2 = User.verify_reset_password_token(token)
+        self.assertEqual(u2.id, u.id)
+
+        # Invalid token returns None
+        self.assertIsNone(User.verify_reset_password_token("invalid-token"))
+
+    def test_reset_token_expired(self):
+        u = User(username='john', email='john@example.com')
+        db.session.add(u)
+        db.session.commit()
+
+        token = u.get_reset_password_token(expires_in=-1)  # expires immediately
+        u2 = User.verify_reset_password_token(token)
+        self.assertIsNone(u2)
+
+    def test_send_email(self):
+        from app.email import send_email
+
+        with mail.record_messages() as outbox:
+            send_email(
+               subject="Test Email",
+               sender="test@example.com",
+               recipients=["john@example.com"],
+                text_body="Hello",
+                html_body="<p>Hello</p>",
+                sync=True  # force synchronous send
+            )
+
+            self.assertEqual(len(outbox), 1)
+            msg = outbox[0]
+            self.assertEqual(msg.subject, "Test Email")
+            self.assertIn("john@example.com", msg.recipients)
+
+
+
+    def test_translation_fallback(self):
+        # Translator API disabled in TestConfig by design
+        text = "Hello world"
+        with self.app.test_request_context('/'):
+            translated = translate(text, "en", "es")
+
+        self.assertEqual(
+            translated,
+            'Error: the translation service is not configured.'
+        )
+
+
+class RouteTests(unittest.TestCase):
+    def setUp(self):
+        self.app = create_app(TestConfig)
+        self.app_context = self.app.app_context()
+        self.app_context.push()
+        db.create_all()
+        self.client = self.app.test_client()
+
+    def tearDown(self):
+        db.session.remove()
+        db.drop_all()
+        self.app_context.pop()
+
+
+
+    def test_follow_route(self):
+        u1 = User(username='john', email='john@example.com')
+        u1.set_password('cat')
+        u2 = User(username='susan', email='susan@example.com')
+        u2.set_password('dog')
+
+        db.session.add_all([u1, u2])
+        db.session.commit()
+
+        # log in john
+        resp = self.client.post('/auth/login', data={
+            'username': 'john',     # if your form uses 'username'
+            'password': 'cat'
+        }, follow_redirects=True)
+        self.assertEqual(resp.status_code, 200)
+
+        # follow susan – note we send a submit field so the form validates
+        resp = self.client.post('/follow/susan', data={'submit': 'Follow'},
+                                follow_redirects=True)
+        self.assertEqual(resp.status_code, 200)
+
+        # reload from DB to see fresh state
+        john = db.session.get(User, u1.id)
+        susan = db.session.get(User, u2.id)
+
+        self.assertTrue(john.is_following(susan))
+        self.assertEqual(john.following_count(), 1)
+        self.assertEqual(susan.followers_count(), 1)
+
+
+    def test_unfollow_route(self):
+        u1 = User(username='john', email='john@example.com')
+        u1.set_password('cat')
+        u2 = User(username='susan', email='susan@example.com')
+        u2.set_password('dog')
+
+        db.session.add_all([u1, u2])
+        db.session.commit()
+
+        # john initially follows susan
+        u1.follow(u2)
+        db.session.commit()
+
+        # log in john
+        resp = self.client.post('/auth/login', data={
+            'username': 'john',
+            'password': 'cat'
+        }, follow_redirects=True)
+        self.assertEqual(resp.status_code, 200)
+
+        # unfollow susan
+        resp = self.client.post('/unfollow/susan', data={'submit': 'Unfollow'},
+                                follow_redirects=True)
+        self.assertEqual(resp.status_code, 200)
+
+        john = db.session.get(User, u1.id)
+        susan = db.session.get(User, u2.id)
+
+        self.assertFalse(john.is_following(susan))
+        self.assertEqual(john.following_count(), 0)
+        self.assertEqual(susan.followers_count(), 0)
+
+    def test_search_indexing(self):
+        if self.app.elasticsearch:
+            u = User(username='john', email='john@example.com')
+            db.session.add(u)
+            db.session.commit()
+
+            p = Post(body="flask microblog test", author=u)
+            db.session.add(p)
+            db.session.commit()
+
+            results, total = Post.search("microblog")
+            self.assertIn(p.id, [hit.id for hit in results])
+
+
+
+
 
 
 if __name__ == '__main__':
